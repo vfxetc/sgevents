@@ -4,7 +4,7 @@ setup(
 
     name='sgevents',
     version='0.1-dev',
-    description='A simplifying Shotgun event daemon',
+    description='A safe Shotgun event daemon',
     url='http://github.com/westernx/sgevents',
     
     packages=find_packages(exclude=['build*', 'tests*']),

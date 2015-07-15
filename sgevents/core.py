@@ -13,12 +13,26 @@ try:
 except ImportError:
     get_sg_args = None
 
+from .event import Event
 
 
 log = logging.getLogger(__name__)
 
 
 class EventLog(object):
+
+    """An object to poll Shotgun's API for new ``EventLogEntry`` entities.
+
+    :param shotgun: A ``shotgun_api3`` compatible Shotgun API instance.
+        Typically we actually use ``sgapi``. If ``None``, we get API arguments
+        via ``shotgun_api3_registry:get_args`` (if such a module exists).
+    :param int last_id: The last ``EventLogEntry`` id that was fully
+        processed.
+    :param last_time: The last time any events were processed. Note that
+        this must be the same type as returned by the ``shotgun`` object;
+        care is taken so that we can handle either ``str`` or ``datetime``.
+
+    """
 
     def __init__(self, shotgun=None, last_id=None, last_time=None):
 
@@ -29,49 +43,149 @@ class EventLog(object):
             shotgun = Shotgun(*shotgun_args)
         self.shotgun = shotgun
         
-        self.last_id = last_id or None
+        #: The highest event ID for which we have processed everything lower.
+        self.max_complete_id = last_id or 0
+
+        #: The highest event ID we have seen; those missing from :attr:`max_complete_id`
+        #: and here will have a record in :attr:`missing_ids`.
+        self.max_partial_id = last_id or 0
+
+        #: Mapping from missing IDs to when they were declared missing.
+        self.missing_ids = {}
+
+        #: How long to track missing IDs until we give up on them;
+        #: defaults to 15 seconds.
+        self.id_timeout = 15.0
+
+        #: The time of the last event we have seen.
         self.last_time = last_time or None
 
-    def iter(self, batch_size=100, delay=3.0):
+    def iter_events(self, batch_size=100, idle_delay=3.0):
+        """Yield :class:`Event` objects as they become availible.
+
+        :param int batch_size: The number of events to read from the API at once.
+        :param float idle_delay: The delay between idle polls of the event log,
+            in seconds.
+
+        ::
+
+            for events in event_log.iter():
+                for e in event:
+                    handle_event(e)
+
+        """
+        
         while True:
-            e = self.read(batch_size)
-            if e:
+
+            batch = self.read(batch_size)
+            for e in batch:
                 yield e
-            else:
-                time.sleep(delay)
 
-    def read(self, batch_size=100):
+            if not batch:
+                time.sleep(idle_delay)
 
-        if self.last_id:
-            entities = self._read(batch_size, filters=[('id', 'greater_than', self.last_id)])
+
+    def read(self, count=100):
+        """Polls for new events, filtering with :func:`filter_new`.
+
+        :param int count: The number of events to read from the API at once.
+        :return list: of new :class:`Event`.
+
+        """
+
+        if self.max_complete_id:
+            entities = self._find(count, filters=[('id', 'greater_than', self.max_complete_id)])
         else:
             if self.last_time:
                 # everything since the last time
-                entities = self._read(batch_size, filters=[('created_at', 'greater_than', self.last_time)])
+                log.info('starting at most recent event since %s' % self.last_time)
+                entities = self._find(count, filters=[('created_at', 'greater_than', self.last_time)])
             else:
                 # the last event
-                entities = self._read(1, order=[{
+                log.info('starting at most recent event')
+                entities = self._find(1, order=[{
                     'field_name': 'created_at',
                     'direction': 'desc',
                 }])
+            if entities:
+                log.info('most recent event is %d at %s' % (entities[0].id, entities[0].created_at))
 
-        if entities:
-            self.last_id = max(self.last_id or 0, max(e['id'] for e in entities))
-            last_time = max(e['created_at'] for e in entities)
-            self.last_time = max(self.last_time, last_time) if self.last_time else last_time
+        return self.filter_new(entities) if entities else []
 
-        return entities or None
+    def filter_new(self, entities):
+        """Filter out entities which we have seen before.
 
-    def _read(self, limit, filters=None, order=None):
-        return self.shotgun.find('EventLogEntry', filters or [], order=order or [], limit=limit, fields=[
-            'attribute_name',
-            'created_at',
-            'entity',
-            'event_type',
-            'meta',
-            'project',
-            'user',
-        ])
+        Due to the transaction model of Shotgun's underlying database, it is
+        possible for events with lower IDs to be created after those with
+        higher IDs. This method is primarly dealing with remembering those
+        gaps, and making sure we don't skip those events if they do eventually
+        show up in the log stream.
+
+        """
+
+        now = time.time()
+        newly_missed = []
+        unseen_entities = []
+
+        # TODO: be really defensive in here re: exceptions being raised
+        # and causing our tracking data to corrupt if we keep polling afterwards.
+        
+        for e in entities:
+            
+            if e.id > self.max_partial_id or e.id in self.missing_ids:
+                unseen_entities.append(e)
+
+            # If we have run before, and there is a gap being introduced by
+            # this event, then track it.
+            if self.max_partial_id:
+                for i in xrange(self.max_partial_id + 1, e.id):
+                    log.info('newly missed event?? %s' % e.summary)
+                    newly_missed.append(i)
+                    self.missing_ids[i] = now
+
+            self.max_partial_id = max(self.max_partial_id, e.id)
+            self.missing_ids.pop(e.id, None)
+
+        if newly_missed:
+            log.warning('missing %d event id%s: %s' % (
+                len(newly_missed),
+                's' if len(newly_missed) > 1 else '',
+                ', '.join(str(i) for i in sorted(newly_missed)),
+            ))
+
+        # Prune any missing ids which have gotten too old.
+        expired_ids = [i for i, t in self.missing_ids.iteritems() if (now - t) > self.id_timeout]
+        if expired_ids:
+            log.warning('pruning %d event id%s which have timed out: %s' % (
+                len(expired_ids),
+                's' if len(expired_ids) > 1 else '',
+                ', '.join(str(i) for i in sorted(expired_ids)),
+            ))
+            for i in expired_ids:
+                self.missing_ids.pop(i)
+
+        # Figure out what the last id we have complete knowledge of is.
+        if self.missing_ids:
+            self.max_complete_id = min(self.missing_ids) - 1
+        else:
+            self.max_complete_id = self.max_partial_id
+
+        # There is a little juggling going on here to make sure we don't
+        # care about the type of the `last_time`.
+        last_time = max(e['created_at'] for e in entities)
+        self.last_time = max(self.last_time, last_time) if self.last_time else last_time
+
+        return unseen_entities
+
+
+    def _find(self, limit, filters=None, **kwargs):
+        raw_events = self.shotgun.find('EventLogEntry',
+            filters or [],
+            Event.return_fields,
+            limit=limit,
+            **kwargs
+        )
+        return [Event.factory(e) for e in raw_events]
 
 
 
