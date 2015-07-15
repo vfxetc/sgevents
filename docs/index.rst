@@ -11,17 +11,11 @@ and provide assistance in dealing with the rest of them.
 .. todo:: Write me.
 
 
-Python API Reference
---------------------
+Contents
+--------
 
-The Event Log
-^^^^^^^^^^^^^
+.. toctree::
+    :maxdepth: 2
 
-.. automodule:: sgevents.core
-    :members:
-
-The Event Object
-^^^^^^^^^^^^^^^^
-
-.. automodule:: sgevents.event
-    :members:
+    python_api
+    reverse_engineering

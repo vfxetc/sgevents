@@ -61,7 +61,7 @@ class Event(dict):
     created_at = _item_property('created_at',
         """When the event happened, in the type returned by the Shotgun API object.""")
 
-    type = _item_property('event_type',
+    event_type = _item_property('event_type',
         """The complete type of the event, e.g. ``"Shotgun_Shot_Change"``.""")
 
     domain = _item_property('event_type', transform=lambda x: x.split('_', 2)[0], doc=
@@ -96,10 +96,8 @@ class Event(dict):
 
         This is as reported by the event's :attr:`type`, which is always availible even
         if the entity is not. However, there is at least one case in which
-        this differs from the type of the :attr:`entity`: ``"Reading"``.
+        this differs from the type of the :attr:`entity`: the :ref:`reading_meta_type`.
 
-        ``"Reading"`` appears to be a meta-type which is decribing when a human
-        has read a note attached to an entity.
 
     """.strip())
 
@@ -125,7 +123,7 @@ class Event(dict):
     @property
     def summary(self):
 
-        parts = [self.type]
+        parts = [self.event_type]
 
         if self.entity:
             parts.append('on %s:%d' % (self.entity['type'], self.entity['id']))
@@ -166,3 +164,10 @@ class Event(dict):
             self['entity'] = e
         return self.entity
 
+
+@_specialization('Change', 'Reading')
+class ReadingChangeEvent(Event):
+
+    @property
+    def entity_type(self):
+        return self.entity['type']
