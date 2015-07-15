@@ -14,7 +14,7 @@ setup(
     license='BSD-3',
     
     install_requires=[
-        'sgapi',
+        # one of `sgapi` or `shotgun_api3` is required
     ],
 
     classifiers=[
