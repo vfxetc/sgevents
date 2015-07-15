@@ -121,14 +121,24 @@ class Event(dict):
             return self.meta['entity_id']
 
     @property
+    def subject_entity(self):
+        """The subject of an event; usually :attr:`entity`.
+
+        This differs for ``"View"`` events.
+
+        """
+        return self.entity
+
+    @property
     def summary(self):
 
         parts = [self.event_type]
 
-        if self.entity:
-            parts.append('on %s:%d' % (self.entity['type'], self.entity['id']))
-            if self.entity.get('name'):
-                parts.append('("%s")' % self.entity['name'])
+        subject = self.subject_entity or self.entity
+        if subject:
+            parts.append('on %s:%d' % (subject['type'], subject['id']))
+            if subject.get('name'):
+                parts.append('("%s")' % subject['name'])
         else:
             parts.append('on %s:%s' % (self.entity_type, self.entity_id or 'unknown'))
 
@@ -171,3 +181,18 @@ class ReadingChangeEvent(Event):
     @property
     def entity_type(self):
         return self.entity['type']
+
+
+@_specialization('View')
+class ViewEvent(Event):
+
+    @property
+    def subject_entity(self):
+        try:
+            return {
+                'type': self.meta['link_entity_type'],
+                'id': self.meta['link_entity_id'],
+            }
+        except KeyError:
+            pass
+
