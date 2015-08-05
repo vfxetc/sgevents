@@ -23,7 +23,8 @@ class EventLog(object):
 
     """An object to poll Shotgun's API for new ``EventLogEntry`` entities.
 
-    :param shotgun: A ``shotgun_api3`` compatible Shotgun API instance.
+    :param shotgun: A ``shotgun_api3`` compatible Shotgun API instance,
+        a tuple of arguments for ``shotgun_api3.Shotgun`` or ``None``.
         Typically we actually use ``sgapi``. If ``None``, we get API arguments
         via ``shotgun_api3_registry:get_args`` (if such a module exists).
     :param int last_id: The last ``EventLogEntry`` id that was fully
@@ -41,6 +42,9 @@ class EventLog(object):
                 raise ValueError('Shotgun instance is required if shotgun_sg3_registry:get_args does not exist')
             shotgun_args = get_sg_args()
             shotgun = Shotgun(*shotgun_args)
+        elif isinstance(shotgun, (list, tuple)):
+            shotgun = Shotgun(*shotgun)
+
         self.shotgun = shotgun
         
         #: The highest event ID for which we have processed everything lower.
