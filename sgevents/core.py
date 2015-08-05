@@ -174,10 +174,8 @@ class EventLog(object):
         else:
             self.max_complete_id = self.max_partial_id
 
-        # There is a little juggling going on here to make sure we don't
-        # care about the type of the `last_time`.
-        last_time = max(e['created_at'] for e in entities)
-        self.last_time = max(self.last_time, last_time) if self.last_time else last_time
+        # We don't use this ourselves after the first scan, but it may be nice to have.
+        self.last_time = max(e['created_at'] for e in entities)
 
         return unseen_entities
 
