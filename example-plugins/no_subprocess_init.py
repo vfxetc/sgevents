@@ -1,7 +1,11 @@
+import logging
+import os
+
+log = logging.getLogger(os.path.basename(__file__))
 
 
 def handle_event(event):
-    print __file__, event
+    log.info('%s %d %s' % (__file__, os.getpid(), event))
 
 
 def __sgevents_init__(dispatcher):

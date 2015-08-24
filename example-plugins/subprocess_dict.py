@@ -10,8 +10,7 @@ def handle_event(event):
 
 __sgevents__ = {
     'type': 'callback',
-    'callback': handle_event,
-    'callback_in_subprocess': False,
+    'callback': '%s:handle_event' % __file__,
 }
 
 
