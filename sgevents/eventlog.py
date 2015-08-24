@@ -36,7 +36,7 @@ class EventLog(object):
 
     """
 
-    def __init__(self, shotgun=None, last_id=None, last_time=None):
+    def __init__(self, shotgun=None, last_id=None, last_time=None, extra_fields=None):
 
         if shotgun is None:
             if get_sg_args is None:
@@ -64,6 +64,10 @@ class EventLog(object):
 
         #: The time of the last event we have seen.
         self.last_time = last_time or None
+
+        self.return_fields = list(Event.return_fields)
+        if extra_fields:
+            self.return_fields.extend(extra_fields)
 
     def iter_events(self, batch_size=100, idle_delay=3.0):
         """Yields :class:`Event` objects as they become availible.
@@ -187,7 +191,7 @@ class EventLog(object):
     def _find(self, limit, filters=None, **kwargs):
         raw_events = self.shotgun.find('EventLogEntry',
             filters or [],
-            Event.return_fields,
+            self.return_fields,
             limit=limit,
             **kwargs
         )

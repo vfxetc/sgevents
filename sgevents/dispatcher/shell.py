@@ -7,23 +7,20 @@ import sys
 import yaml
 
 from ..event import Event
-from ..utils import get_func, get_command_prefix
+from ..utils import get_func
 from .filter import Filter
+from ..utils import envvars_for_event, get_command_prefix
 
 
 log = logging.getLogger(__name__)
 
 
-class Callback(object):
+class ShellScript(object):
     
-    def __init__(self, callback, name=None, callback_in_subprocess=True, filter=None, args=None, kwargs=None):
+    def __init__(self, script, name=None, filter=None):
 
         self.name = name
-        self.callback = callback
-        self.callback_in_subprocess = bool(callback_in_subprocess)
-        self._callback = None
-        self.args = tuple(args or ())
-        self.kwargs = dict(kwargs or {})
+        self.script = script
         self.filter = Filter(filter) if filter else None
 
     def __repr__(self):
@@ -37,33 +34,18 @@ class Callback(object):
 
     def handle_event(self, dispatcher, envvars, event):
 
-        # TODO: Setup context.
-
-        if not self.callback_in_subprocess:
-            # Load it the first time.
-            if self._callback is None:
-                self._callback = get_func(self.callback)
-            self._callback(event, *self.args, **self.kwargs)
-            return
-
         environ = os.environ.copy()
         environ.update(envvars)
+        environ.update(envvars_for_event(event))
 
         cmd = get_command_prefix(envvars)
-        cmd.extend((sys.executable, '-m', 'sgevents.dispatcher.callback'))
+        cmd.extend(('/bin/bash', '-c', self.script))
 
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, env=environ)
-        proc.stdin.write(yaml.dump({
-            'callback': self.callback,
-            'args': self.args,
-            'kwargs': self.kwargs,
-            'event': dict(event),
-        }))
-        proc.stdin.close()
+        proc = subprocess.Popen(cmd, env=environ)
 
         ret = proc.wait()
         if ret:
-            log.error('subprocess for %s returned %s' % (self.callback, ret))
+            log.error('shell script %r returned %s' % (self.script, ret))
 
 
 

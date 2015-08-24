@@ -3,9 +3,10 @@ import logging
 
 import yaml
 
+from ..utils import get_adhoc_module
 from .callback import Callback
 from .context import Context
-from ..utils import get_adhoc_module
+from .shell import ShellScript
 
 log = logging.getLogger(__name__)
 
@@ -14,7 +15,7 @@ class Dispatcher(object):
 
     def __init__(self):
         self.contexts = []
-        self.callbacks = []
+        self.handlers = []
 
     def load_plugins(self, dir_path):
         """Load plugins from ``*.yml`` and ``*.py`` files in given directory."""
@@ -31,7 +32,7 @@ class Dispatcher(object):
                 self._load_yaml_plugin(os.path.join(dir_path, name))
 
     def _load_python_plugin(self, path):
-        log.info('Loading Python plugin from %s' % path)
+        log.info('Loading Python plugin(s) from %s' % path)
 
         module = get_adhoc_module(path)
 
@@ -64,6 +65,8 @@ class Dispatcher(object):
         type_ = kwargs.pop('type')
         if type_ == 'callback':
             self.register_callback(**kwargs)
+        elif type_ == 'shell':
+            self.register_shell_script(**kwargs)
         elif type_ == 'context':
             self.register_context(**kwargs)
         else:
@@ -71,27 +74,40 @@ class Dispatcher(object):
         return
 
     def _load_yaml_plugin(self, path):
+        log.info('Loading YAML plugin(s) from %s' % path)
         for data in yaml.load_all(open(path).read()):
             self._load_described_plugin(data)
 
     def register_callback(self, **kwargs):
-        self.callbacks.append(Callback(**kwargs))
+        self.handlers.append(Callback(**kwargs))
+
+    def register_shell_script(self, **kwargs):
+        self.handlers.append(ShellScript(**kwargs))
 
     def register_context(self, **kwargs):
         self.contexts.append(Context(**kwargs))
 
-
     def get_extra_fields(self):
         """Get list of extra fields for ``EventLog`` for filter evaluation."""
-        raise NotImplementedError
+        res = []
+        for ctx in self.contexts:
+            res.extend(ctx.get_extra_fields())
+        for cb in self.handlers:
+            res.extend(cb.get_extra_fields())
+        return res
 
     def dispatch(self, event):
         """Dispatch the given event."""
 
-        # TODO: Figure out a context.
+        envvars = {}
+        for ctx in self.contexts:
+            if ctx.filter is None or ctx.filter.eval(event):
+                log.info('Matched context %s; setting %s' % (ctx.name, ' '.join(sorted('%s=%s' % x for x in ctx.envvars.iteritems()))))
+                envvars.update(ctx.envvars)
 
-        for callback in self.callbacks:
-            # TODO: filter
-            callback.handle_event(self, None, event)
+        for handler in self.handlers:
+            if handler.filter is None or handler.filter.eval(event):
+                log.info('Dispatching to %s %s' % (handler.__class__.__name__.lower(), handler.name))
+                handler.handle_event(self, envvars, event)
 
 

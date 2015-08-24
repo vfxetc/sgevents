@@ -16,7 +16,7 @@ if __name__ == '__main__':
     for plugin_dir in args.plugins or ():
         dispatcher.load_plugins(plugin_dir)
 
-    for e in EventLog().iter_events():
+    for e in EventLog(extra_fields=dispatcher.get_extra_fields()).iter_events():
         dispatcher.dispatch(e)
 
 

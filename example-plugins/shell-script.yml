@@ -1,0 +1,2 @@
+type: shell
+script: env | grep -E 'SGEVENT|VEE' | sort
