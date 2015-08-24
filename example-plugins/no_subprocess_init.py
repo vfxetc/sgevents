@@ -1,7 +1,7 @@
 import logging
 import os
 
-log = logging.getLogger(os.path.basename(__file__))
+log = logging.getLogger('no_subprocess_init')
 
 
 def handle_event(event):

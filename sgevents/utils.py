@@ -1,4 +1,15 @@
+import imp
+import hashlib
 import re
+import sys
+
+
+def get_adhoc_module(path):
+    name = re.sub('\W+', '__', path) + '_' + hashlib.md5(path).hexdigest()[:8]
+    try:
+        return sys.modules[name]
+    except KeyError:
+        return imp.load_source(name, path)
 
 
 def get_func(spec):
@@ -16,9 +27,8 @@ def get_func(spec):
     if m:
         path, func_name = m.groups()
         if '/' in path:
-            namespace = {'__name__': path, '__file__': path}
-            execfile(path, namespace)
-            return namespace[func_name]
+            module = get_adhoc_module(path)
+            return getattr(module, func_name)
 
     raise ValueError('spec must be like "/path/to/module.py:func_name" or "package.module:func_name"; got %r' % spec)
 

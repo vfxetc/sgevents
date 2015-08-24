@@ -5,7 +5,7 @@ import yaml
 
 from .callback import Callback
 from .context import Context
-
+from ..utils import get_adhoc_module
 
 log = logging.getLogger(__name__)
 
@@ -33,18 +33,17 @@ class Dispatcher(object):
     def _load_python_plugin(self, path):
         log.info('Loading Python plugin from %s' % path)
 
-        namespace = {'__name__': path, '__file__': path}
-        execfile(path, namespace)
+        module = get_adhoc_module(path)
 
         # Look for something that wants to register itself.
-        init_func = namespace.get('__sgevents_init__')
+        init_func = getattr(module, '__sgevents_init__', None)
         if init_func:
             init_func(self)
             return
 
         # Look for a dictionary of metadata structured as one would find
         # in the yaml file.
-        desc = namespace.get('__sgevents__')
+        desc = getattr(module, '__sgevents__', None)
         if desc is not None:
             self._load_described_plugin(desc)
             return

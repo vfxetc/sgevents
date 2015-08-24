@@ -1,7 +1,7 @@
 import logging
 import os
 
-log = logging.getLogger(os.path.basename(__file__))
+log = logging.getLogger('subprocess_dict')
 
 
 def handle_event(event):
@@ -10,7 +10,7 @@ def handle_event(event):
 
 __sgevents__ = {
     'type': 'callback',
-    'callback': '%s:handle_event' % __file__,
+    'callback': '%s:handle_event' % __file__.rstrip('c'),
 }
 
 
