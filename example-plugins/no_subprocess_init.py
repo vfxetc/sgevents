@@ -5,5 +5,5 @@ def handle_event(event):
 
 
 def __sgevents_init__(dispatcher):
-    dispatcher.register_callback(callback=handle_event, in_subprocess=False)
+    dispatcher.register_callback(callback=handle_event, callback_in_subprocess=False)
 

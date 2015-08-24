@@ -19,6 +19,11 @@ class Dispatcher(object):
     def load_plugins(self, dir_path):
         """Load plugins from ``*.yml`` and ``*.py`` files in given directory."""
         for name in os.listdir(dir_path):
+
+            # Our NFS makes these all over the place.
+            if name.startswith('.'):
+                continue
+
             base, ext = os.path.splitext(name)
             if ext == '.py':
                 self._load_python_plugin(os.path.join(dir_path, name))
@@ -37,10 +42,38 @@ class Dispatcher(object):
             init_func(self)
             return
 
-        raise NotImplementedError('need __sgevents_init__ in python plugin')
+        # Look for a dictionary of metadata structured as one would find
+        # in the yaml file.
+        desc = namespace.get('__sgevents__')
+        if desc is not None:
+            self._load_described_plugin(desc)
+            return
+
+        raise ValueError('missing __sgevents_init__ function and __sgevents__ dict in Python plugin')
+
+    def _load_described_plugin(self, desc):
+
+        if isinstance(desc, (list, tuple)):
+            for x in desc:
+                self._load_described_plugin(x)
+            return
+
+        if not isinstance(desc, dict):
+            raise TypeError('plugin descriptions are dicts; got %s' % type(desc))
+
+        kwargs = desc.copy()
+        type_ = kwargs.pop('type')
+        if type_ == 'callback':
+            self.register_callback(**kwargs)
+        elif type_ == 'context':
+            self.register_context(**kwargs)
+        else:
+            raise ValueError('unknown plugin type %s' % type_)
+        return
 
     def _load_yaml_plugin(self, path):
-        raise NotImplementedError
+        for data in yaml.load_all(open(path).read()):
+            self._load_described_plugin(data)
 
     def register_callback(self, **kwargs):
         self.callbacks.append(Callback(**kwargs))
