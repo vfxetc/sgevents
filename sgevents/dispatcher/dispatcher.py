@@ -1,7 +1,7 @@
-import os
-import logging
-import threading
 import itertools
+import logging
+import os
+import threading
 
 import yaml
 
