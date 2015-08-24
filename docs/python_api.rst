@@ -5,8 +5,9 @@ Python API Reference
 The Event Log
 -------------
 
-.. automodule:: sgevents.core
+.. automodule:: sgevents.eventlog
     :members:
+
 
 The Event Object
 ----------------

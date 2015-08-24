@@ -3,6 +3,7 @@ import pprint
 import logging
 
 
+# We prefer our own API object.
 try:
     from sgapi import Shotgun
 except ImportError:
@@ -65,17 +66,20 @@ class EventLog(object):
         self.last_time = last_time or None
 
     def iter_events(self, batch_size=100, idle_delay=3.0):
-        """Yield :class:`Event` objects as they become availible.
+        """Yields :class:`Event` objects as they become availible.
 
         :param int batch_size: The number of events to read from the API at once.
         :param float idle_delay: The delay between idle polls of the event log,
             in seconds.
 
+        Exceptions from the connection to Shotgun (which happen more frequently
+        than you might think when this is left running 24/7) will be raised,
+        although they tend to be ``sgapi.TransportError``.
+
         ::
 
-            for events in event_log.iter():
-                for e in event:
-                    handle_event(e)
+            for event in event_log.iter():
+                handle_event(event)
 
         """
         

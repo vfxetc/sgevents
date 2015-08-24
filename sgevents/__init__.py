@@ -1,1 +1,1 @@
-from .core import EventLog
+from .eventlog import EventLog
