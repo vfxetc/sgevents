@@ -1,6 +1,7 @@
 import os
 import logging
 import threading
+import itertools
 
 import yaml
 
@@ -9,6 +10,7 @@ from .callback import Callback
 from .context import Context
 from .qube import QubeCallback
 from .shell import ShellScript
+from .. import logs
 
 
 log = logging.getLogger(__name__)
@@ -19,6 +21,7 @@ class Dispatcher(object):
     def __init__(self):
         self.contexts = []
         self.handlers = []
+        self._dispatch_counter = itertools.count(1)
 
     def load_plugins(self, dir_path):
         """Load plugins from ``*.yml`` and ``*.py`` files in given directory."""
@@ -126,12 +129,14 @@ class Dispatcher(object):
                     log.exception('Error during %s %r filter; skipping handler for event' % (handler.__class__.__name__.lower(), handler.name))
                     continue
 
-            log.info('Dispatching to %s %r' % (handler.__class__.__name__.lower(), handler.name))
-            thread = threading.Thread(target=self._dispatch_thread_target, args=(handler, envvars, event))
+            thread = threading.Thread(target=self._dispatch_thread_target, args=(logs.get_log_meta(), handler, envvars, event))
             thread.start() # Not daemon!
 
-    def _dispatch_thread_target(self, handler, envvars, event):
+    def _dispatch_thread_target(self, log_meta, handler, envvars, event):
         try:
+            logs.update_log_meta(**log_meta)
+            logs.update_log_meta(dispatch=next(self._dispatch_counter))
+            log.info('Dispatching to %s %r' % (handler.__class__.__name__.lower(), handler.name))
             handler.handle_event(self, envvars, event)
         except:
             log.exception('Error during %s %r' % (handler.__class__.__name__.lower(), handler.name))

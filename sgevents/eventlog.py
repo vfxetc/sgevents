@@ -15,6 +15,8 @@ except ImportError:
     get_sg_args = None
 
 from .event import Event
+from .logs import update_log_meta
+from .utils import get_func_name
 
 
 log = logging.getLogger(__name__)
@@ -68,6 +70,24 @@ class EventLog(object):
         self.return_fields = list(Event.return_fields)
         if extra_fields:
             self.return_fields.extend(extra_fields)
+
+    def process_events_forever(self, func, *args, **kwargs):
+        while True:
+            try:
+                for event in self.iter_events(*args, **kwargs):
+                    update_log_meta(event=event.id)
+                    try:
+                        func(event)
+                    except KeyboardInterrupt:
+                        return
+                    except:
+                        log.exception('error calling %s with event %d:\n%s' % (get_func_name(func), event.id, event.dumps(pretty=True)))
+            
+            except KeyboardInterrupt:
+                return
+            except:
+                log.exception('error during event iteration; sleeping for 10s')
+                time.sleep(10)
 
     def iter_events(self, batch_size=100, idle_delay=3.0):
         """Yields :class:`Event` objects as they become availible.

@@ -6,6 +6,7 @@ import sys
 import yaml
 
 from ..event import Event
+from .. import logs
 from ..utils import get_func, get_func_name, get_command_prefix
 from .filter import Filter
 
@@ -55,10 +56,16 @@ class Callback(object):
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, env=environ)
         proc.stdin.write(yaml.dump({
+
             'callback': get_func_name(self.callback),
+            'event': dict(event),
+
             'args': self.args,
             'kwargs': self.kwargs,
-            'event': dict(event),
+
+            'log_setup': logs.get_log_setup(),
+            'log_meta': logs.get_log_meta(),
+
         }))
         proc.stdin.close()
 
@@ -80,9 +87,18 @@ def subprocess_main():
     package = yaml.load(raw_package)
 
     callback = get_func(package['callback'])
+    event = Event.factory(package['event'])
     args = package.get('args', ())
     kwargs = package.get('kwargs', {})
-    event = Event.factory(package['event'])
+    log_setup = package.get('log_setup')
+    log_meta = package.get('log_meta')
+
+    # Restore logging state.
+    if log_setup:
+        logs.setup_logs(*log_setup)
+    if log_meta:
+        logs.update_log_meta(**log_meta)
+    logs.update_log_meta(event=event.id)
 
     callback(event, *args, **kwargs)
 
