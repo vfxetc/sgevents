@@ -15,20 +15,16 @@ log = logging.getLogger(__name__)
 
 class Callback(object):
     
-    def __init__(self, callback, name=None, callback_in_subprocess=True, callback_on_qube=False, filter=None, envvars=None, args=None, kwargs=None):
+    def __init__(self, callback, name=None, callback_in_subprocess=True, filter=None, envvars=None, args=None, kwargs=None):
         self.name = name or get_func_name(callback)
         self.callback = callback
         self.callback_in_subprocess = bool(callback_in_subprocess)
-        self.callback_on_qube = bool(callback_on_qube)
         self.args = tuple(args or ())
         self.kwargs = dict(kwargs or {})
         self.filter = Filter(filter) if filter else None
         self.envvars = dict(envvars or {})
 
         self._callback = None
-
-        if self.callback_on_qube and not self.callback_in_subprocess:
-            raise ValueError('Cannot callback on Qube but not in subprocess')
 
     def __repr__(self):
         if self.name:
@@ -37,36 +33,9 @@ class Callback(object):
             return '<%s at 0x%x>' % (self.__class__.__name__, id(self))
 
     def get_extra_fields(self):
-        fields = self.filter.get_extra_fields() if self.filter else []
-        if self.callback_on_qube:
-            fields.append('user.HumanUser.login')
-        return fields
+        return self.filter.get_extra_fields() if self.filter else []
 
     def handle_event(self, dispatcher, envvars, event):
-
-        if self.callback_on_qube:
-
-            from qbfutures import Executor
-
-            envvars = envvars.copy()
-            envvars.update(self.envvars)
-
-            extra = {
-                'name': 'SGEvent: %s on %s' % (get_func_name(self.callback), event.summary),
-                'env': envvars,
-            }
-
-            login = event.get('user.HumanUser.login')
-            if login:
-                extra['user'] = login.split('@')[0]
-
-            args = [event]
-            args.extend(self.args)
-
-            future = Executor().submit_ext(self.callback, args, self.kwargs, **extra)
-            log.info('Submitted to Qube as %s' % future.job_id)
-            return
-
 
         if not self.callback_in_subprocess:
             # Load it the first time.

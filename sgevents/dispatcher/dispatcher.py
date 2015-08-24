@@ -1,11 +1,13 @@
 import os
 import logging
+import threading
 
 import yaml
 
 from ..utils import get_adhoc_module
 from .callback import Callback
 from .context import Context
+from .qube import QubeCallback
 from .shell import ShellScript
 
 
@@ -79,6 +81,9 @@ class Dispatcher(object):
     def register_callback(self, **kwargs):
         self.handlers.append(Callback(**kwargs))
 
+    def register_qube_callback(self, **kwargs):
+        self.handlers.append(QubeCallback(**kwargs))
+
     def register_shell_script(self, **kwargs):
         self.handlers.append(ShellScript(**kwargs))
 
@@ -99,13 +104,36 @@ class Dispatcher(object):
 
         envvars = {}
         for ctx in self.contexts:
-            if ctx.filter is None or ctx.filter.eval(event):
-                log.info('Matched context %r; setting %s' % (ctx.name, ' '.join(sorted('%s=%s' % x for x in ctx.envvars.iteritems()))))
-                envvars.update(ctx.envvars)
+
+            if ctx.filter is not None:
+                try:
+                    if not ctx.filter.eval(event):
+                        continue
+                except:
+                    log.exception('Error during context %r filter; skipping event' % ctx.name)
+                    return
+
+            log.info('Matched context %r; setting %s' % (ctx.name, ' '.join(sorted('%s=%s' % x for x in ctx.envvars.iteritems()))))
+            envvars.update(ctx.envvars)
 
         for handler in self.handlers:
-            if handler.filter is None or handler.filter.eval(event):
-                log.info('Dispatching to %s %r' % (handler.__class__.__name__.lower(), handler.name))
-                handler.handle_event(self, envvars, event)
+            
+            if handler.filter is not None:
+                try:
+                    if not handler.filter.eval(event):
+                        continue
+                except:
+                    log.exception('Error during %s %r filter; skipping handler for event' % (handler.__class__.__name__.lower(), handler.name))
+                    continue
+
+            log.info('Dispatching to %s %r' % (handler.__class__.__name__.lower(), handler.name))
+            thread = threading.Thread(target=self._dispatch_thread_target, args=(handler, envvars, event))
+            thread.start() # Not daemon!
+
+    def _dispatch_thread_target(self, handler, envvars, event):
+        try:
+            handler.handle_event(self, envvars, event)
+        except:
+            log.exception('Error during %s %r' % (handler.__class__.__name__.lower(), handler.name))
 
 

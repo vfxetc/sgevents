@@ -1,8 +1,7 @@
-type: callback
+type: qube_callback
+name: sgevents qube dev
 
-callback_on_qube: true
-
-callback: sgevents.dispatcher.callback:_test
+callback: sgevents.dispatcher.qube:_test
 
 filter:
     user.HumanUser.login: mboers
