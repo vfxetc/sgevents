@@ -3,7 +3,7 @@ from .filter import Filter
 class Context(object):
 
     def __init__(self, name=None, envvars=None, filter=None):
-        self.name = name
+        self.name = name or str(envvars)
         self.envvars = dict(envvars or {})
         self.filter = Filter(filter) if filter else None
 

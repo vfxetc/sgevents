@@ -7,7 +7,7 @@ import sys
 import yaml
 
 from ..event import Event
-from ..utils import get_func, get_command_prefix
+from ..utils import get_func, get_func_name, get_command_prefix
 from .filter import Filter
 
 
@@ -18,7 +18,7 @@ class Callback(object):
     
     def __init__(self, callback, name=None, callback_in_subprocess=True, filter=None, args=None, kwargs=None):
 
-        self.name = name
+        self.name = name or get_func_name(callback)
         self.callback = callback
         self.callback_in_subprocess = bool(callback_in_subprocess)
         self._callback = None

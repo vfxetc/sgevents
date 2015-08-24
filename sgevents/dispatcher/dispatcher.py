@@ -102,12 +102,12 @@ class Dispatcher(object):
         envvars = {}
         for ctx in self.contexts:
             if ctx.filter is None or ctx.filter.eval(event):
-                log.info('Matched context %s; setting %s' % (ctx.name, ' '.join(sorted('%s=%s' % x for x in ctx.envvars.iteritems()))))
+                log.info('Matched context %r; setting %s' % (ctx.name, ' '.join(sorted('%s=%s' % x for x in ctx.envvars.iteritems()))))
                 envvars.update(ctx.envvars)
 
         for handler in self.handlers:
             if handler.filter is None or handler.filter.eval(event):
-                log.info('Dispatching to %s %s' % (handler.__class__.__name__.lower(), handler.name))
+                log.info('Dispatching to %s %r' % (handler.__class__.__name__.lower(), handler.name))
                 handler.handle_event(self, envvars, event)
 
 

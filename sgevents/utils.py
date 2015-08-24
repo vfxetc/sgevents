@@ -14,6 +14,12 @@ def get_adhoc_module(path):
         return imp.load_source(name, path)
 
 
+def get_func_name(spec):
+    if isinstance(spec, basestring):
+        return spec
+    return '%s.%s' % (getattr(spec, '__module__', '__module__'), getattr(spec, '__name__', str(spec)))
+
+
 def get_func(spec):
 
     if not isinstance(spec, basestring):

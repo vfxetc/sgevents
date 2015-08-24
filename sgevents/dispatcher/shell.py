@@ -19,7 +19,7 @@ class ShellScript(object):
     
     def __init__(self, script, name=None, filter=None):
 
-        self.name = name
+        self.name = name or script
         self.script = script
         self.filter = Filter(filter) if filter else None
 
