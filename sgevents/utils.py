@@ -4,6 +4,7 @@ import re
 import sys
 import subprocess
 import os
+from datetime import datetime
 
 
 def get_adhoc_module(path):
@@ -59,3 +60,16 @@ def get_command_prefix(envvars):
         return ['dev', '--bootstrap']
     else:
         return []
+
+
+def pickleable(value):
+    
+    if isinstance(value, dict):
+        return dict((k, pickleable(v)) for k, v in value.iteritems())
+    
+    if isinstance(value, datetime) and value.tzinfo:
+        # Convert to UTC
+        return datetime(*value.utctimetuple()[:6])
+
+    return value
+

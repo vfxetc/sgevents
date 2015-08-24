@@ -1,2 +1,2 @@
-type: shell
+type: shell_script
 script: echo SGEVENT_ID:$SGEVENT_ID SGEVENT_EVENT_TYPE:$SGEVENT_EVENT_TYPE VEE_EXEC_ARGS:$VEE_EXEC_ARGS

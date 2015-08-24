@@ -8,6 +8,7 @@ from .callback import Callback
 from .context import Context
 from .shell import ShellScript
 
+
 log = logging.getLogger(__name__)
 
 
@@ -46,16 +47,21 @@ class Dispatcher(object):
         # in the yaml file.
         desc = getattr(module, '__sgevents__', None)
         if desc is not None:
-            self._load_described_plugin(desc)
+            self.register(desc)
             return
 
         raise ValueError('missing __sgevents_init__ function and __sgevents__ dict in Python plugin')
 
-    def _load_described_plugin(self, desc):
+    def _load_yaml_plugin(self, path):
+        log.info('Loading YAML plugin(s) from %s' % path)
+        for data in yaml.load_all(open(path).read()):
+            self.register(data)
+
+    def register(self, desc):
 
         if isinstance(desc, (list, tuple)):
             for x in desc:
-                self._load_described_plugin(x)
+                self.register(x)
             return
 
         if not isinstance(desc, dict):
@@ -63,20 +69,12 @@ class Dispatcher(object):
 
         kwargs = desc.copy()
         type_ = kwargs.pop('type')
-        if type_ == 'callback':
-            self.register_callback(**kwargs)
-        elif type_ == 'shell':
-            self.register_shell_script(**kwargs)
-        elif type_ == 'context':
-            self.register_context(**kwargs)
-        else:
-            raise ValueError('unknown plugin type %s' % type_)
-        return
 
-    def _load_yaml_plugin(self, path):
-        log.info('Loading YAML plugin(s) from %s' % path)
-        for data in yaml.load_all(open(path).read()):
-            self._load_described_plugin(data)
+        registrar = getattr(self, 'register_%s' % type_, None)
+        if registrar:
+            registrar(**kwargs)
+        else:
+            raise ValueError('unknown plugin type %r' % type_)
 
     def register_callback(self, **kwargs):
         self.handlers.append(Callback(**kwargs))

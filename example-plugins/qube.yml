@@ -1,0 +1,15 @@
+type: callback
+
+callback_on_qube: true
+
+callback: sgevents.dispatcher.callback:_test
+
+filter:
+    user.HumanUser.login: mboers
+    project:
+        type: Project
+        id: 66
+
+envvars:
+    # Force devmode
+    VEE_EXEC_ARGS: "--dev"

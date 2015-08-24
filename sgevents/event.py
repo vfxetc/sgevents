@@ -1,5 +1,7 @@
 import json
 
+from .utils import pickleable
+
 
 def _item_property(key, doc=None, transform=None):
     if transform:
@@ -173,6 +175,9 @@ class Event(dict):
                 raise ValueError('could not find retired %s for event %d' % (self.entity_type, self.id))
             self['entity'] = e
         return self.entity
+
+    def __reduce__(self):
+        return (self.__class__, (pickleable(self), ))
 
 
 @_specialization('Change', 'Reading')
