@@ -1,0 +1,11 @@
+[Unit]
+Description=Shotgun Events
+
+[Service]
+ExecStart=/var/lib/sgevents/sgevents/run.sh
+User=sgevents
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+

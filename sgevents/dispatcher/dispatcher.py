@@ -105,6 +105,8 @@ class Dispatcher(object):
     def dispatch(self, event):
         """Dispatch the given event."""
 
+        log.info('Dispatching %s' % event.summary)
+
         envvars = {}
         for ctx in self.contexts:
 
