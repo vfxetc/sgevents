@@ -83,7 +83,8 @@ class Event(dict):
     user = _item_property('user', 
         """The ``HumanUser`` or ``ApiUser`` that triggered this event.""")
 
-    meta = _item_property('meta')
+    # We've seen this come back None when Shotgun does automatic updates.
+    meta = _item_property('meta', transform=lambda x: x if x is not None else {})
 
     entity = _item_property('entity',
         """The entity, if availible.
