@@ -5,11 +5,11 @@ import sys
 
 import yaml
 
-from ..event import Event
 from .. import logs
+from ..event import Event
+from ..subprocess import call_in_subprocess
 from ..utils import get_func, get_func_name, get_command_prefix
 from .filter import Filter
-
 
 log = logging.getLogger(__name__)
 
@@ -45,63 +45,11 @@ class Callback(object):
             self._callback(event, *self.args, **self.kwargs)
             return
 
-        # From here down is running in a subprocess.
-
-        environ = os.environ.copy()
-        environ.update(envvars)
-        environ.update(self.envvars)
-
-        cmd = get_command_prefix(envvars)
-        cmd.extend((sys.executable, '-m', 'sgevents.dispatcher.callback'))
-
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, env=environ)
-        proc.stdin.write(yaml.dump({
-
-            'callback': get_func_name(self.callback),
-            'event': dict(event),
-
-            'args': self.args,
-            'kwargs': self.kwargs,
-
-            'log_setup': logs.get_log_setup(),
-            'log_meta': logs.get_log_meta(),
-
-        }))
-        proc.stdin.close()
+        envvars = dict(envvars or {})
+        envvars.update(self.envvars)
+        proc = call_in_subprocess(self.callback, (event, ) + self.args, self.kwargs, envvars=envvars)
 
         ret = proc.wait()
         if ret:
             log.error('subprocess for %s returned %s' % (self.callback, ret))
 
-
-
-def _test(event):
-    print 'hello from the callback!'
-    print event
-
-
-
-def subprocess_main():
-
-    raw_package = sys.stdin.read()
-    package = yaml.load(raw_package)
-
-    callback = get_func(package['callback'])
-    event = Event.factory(package['event'])
-    args = package.get('args', ())
-    kwargs = package.get('kwargs', {})
-    log_setup = package.get('log_setup')
-    log_meta = package.get('log_meta')
-
-    # Restore logging state.
-    if log_setup:
-        logs.setup_logs(*log_setup)
-    if log_meta:
-        logs.update_log_meta(**log_meta)
-    logs.update_log_meta(event=event.id)
-
-    callback(event, *args, **kwargs)
-
-
-if __name__ == '__main__':
-    exit(subprocess_main() or 0)
