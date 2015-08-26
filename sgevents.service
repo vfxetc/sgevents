@@ -2,7 +2,7 @@
 Description=Shotgun Events
 
 [Service]
-ExecStart=/var/lib/sgevents/sgevents/run.sh
+ExecStart=/var/lib/sgevents/run.sh
 User=sgevents
 Restart=on-failure
 

@@ -1,0 +1,18 @@
+
+---
+type: context
+name: dev by user
+filter:
+    user.HumanUser.login: /mreid|mboers/
+envvars:
+    VEE_EXEC_ARGS: "--dev"
+
+---
+type: context
+name: dev by project
+filter:
+    project:
+        type: Project
+        id: 66
+envvars:
+    VEE_EXEC_ARGS: "--dev"
