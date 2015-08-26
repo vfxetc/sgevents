@@ -59,5 +59,8 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
+    
+    # We REALLY don't want to be using the cache for this stuff.
+    os.environ.pop('SGCACHE', None)
 
     main()
