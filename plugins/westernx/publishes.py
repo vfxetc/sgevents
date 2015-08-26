@@ -1,5 +1,6 @@
 import logging
 
+from sgevents.subprocess import call_in_subprocess
 from sgsession import Session
 
 
@@ -11,8 +12,6 @@ def callback(event):
     sg = Session()
     event = sg.merge(event)
     
-    event.pprint()
-    
     # Must be setting it to a non-zero version.
     version = event.get('entity.PublishEvent.sg_version')
     if not version:
@@ -20,9 +19,9 @@ def callback(event):
         return
 
     # For now, we only run for the Testing Sandbox.
-    if event['project']['id'] != 66:
-        log.info('Project %r in not Testing Sandbox; skipping' % (event['project'].get('name') or event['project']['id']))
-        return
+    #if event['project']['id'] != 66:
+    #    log.info('Project %r in not Testing Sandbox; skipping' % (event['project'].get('name') or event['project']['id']))
+    #    return
 
     # Our first job, is to create camera and geocache publishes from generic maya scenes.
     pub_type = event.get('entity.PublishEvent.sg_type')
@@ -34,7 +33,20 @@ def callback(event):
         log.info('sg_link.step.short_code %s is not Anim or Roto; skipping' % step_code)
         return
     
-    print 'OK!'
+    log.info('Delegating to sgactions')
+    call_in_subprocess('%s:republish' % __file__, [event['entity.PublishEvent.id']])
+
+
+def republish(id_):
+
+    from mayatools.actions.publishes import republish_camera, republish_geocache
+
+    log.info('Scheduling camera republish...')
+    republish_camera('PublishEvent', [id_])
+
+    log.info('Scheduling geocache republish...')
+    republish_geocache('PublishEvent', [id_])
+
 
 __sgevents__ = dict(
     type='callback',
