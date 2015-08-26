@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 class Callback(object):
     
-    def __init__(self, callback, name=None, callback_in_subprocess=True, filter=None, envvars=None, args=None, kwargs=None):
+    def __init__(self, callback, name=None, callback_in_subprocess=True, filter=None, envvars=None, args=None, kwargs=None, extra_fields=None):
         self.name = name or get_func_name(callback)
         self.callback = callback
         self.callback_in_subprocess = bool(callback_in_subprocess)
@@ -24,7 +24,7 @@ class Callback(object):
         self.kwargs = dict(kwargs or {})
         self.filter = Filter(filter) if filter else None
         self.envvars = dict(envvars or {})
-
+        self.extra_fields = list(extra_fields or [])
         self._callback = None
 
     def __repr__(self):
@@ -34,7 +34,7 @@ class Callback(object):
             return '<%s at 0x%x>' % (self.__class__.__name__, id(self))
 
     def get_extra_fields(self):
-        return self.filter.get_extra_fields() if self.filter else []
+        return (self.filter.get_extra_fields() if self.filter else []) + self.extra_fields
 
     def handle_event(self, dispatcher, envvars, event):
 
