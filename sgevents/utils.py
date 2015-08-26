@@ -2,7 +2,6 @@ import imp
 import hashlib
 import re
 import sys
-import subprocess
 import os
 from datetime import datetime
 
@@ -12,7 +11,10 @@ def get_adhoc_module(path):
     try:
         return sys.modules[name]
     except KeyError:
-        return imp.load_source(name, path)
+        if path.endswith('.pyc'):
+            return imp.load_compiled(name, path)
+        else:
+            return imp.load_source(name, path)
 
 
 def get_func_name(spec):

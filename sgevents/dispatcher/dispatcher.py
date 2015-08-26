@@ -137,7 +137,7 @@ class Dispatcher(object):
     def _dispatch_thread_target(self, log_meta, handler, envvars, event):
         try:
             logs.update_log_meta(**log_meta)
-            logs.update_log_meta(dispatch=next(self._dispatch_counter))
+            logs.update_log_meta(event=event.id, dispatch=next(self._dispatch_counter))
             log.info('Dispatching to %s %r' % (handler.__class__.__name__.lower(), handler.name))
             handler.handle_event(self, envvars, event)
         except:
