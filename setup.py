@@ -17,6 +17,13 @@ setup(
         # one of `sgapi` or `shotgun_api3` is required
     ],
 
+    entry_points={
+        'console_scripts': '''
+            sgevents-daemon = sgevents.commands.daemon:main
+            sgevents-dispatch = sgevents.commands.dispatch:main
+        ''',
+    },
+
     classifiers=[
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',

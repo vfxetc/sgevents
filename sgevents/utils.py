@@ -5,6 +5,30 @@ import sys
 import os
 from datetime import datetime
 
+import sgapi
+
+
+def get_shotgun(shotgun=None):
+
+    if shotgun is None:
+
+        try:
+            import shotgun_api3_registry
+        except ImportError:
+            raise ValueError('Shotgun instance is required if shotgun_sg3_registry:get_args does not exist')
+
+        if hasattr(shotgun_api3_registry, 'get_kwargs'):
+            shotgun = shotgun_api3_registry.get_kwargs()
+        else:
+            shotgun = shotgun_api3_registry.get_args()
+
+    if isinstance(shotgun, (list, tuple)):
+        shotgun = sgapi.Shotgun(*shotgun)
+    elif isinstance(shotgun, dict):
+        shotgun = sgapi.Shotgun(**shotgun)
+
+    return shotgun
+
 
 def get_adhoc_module(path):
     name = re.sub('\W+', '__', path) + '_' + hashlib.md5(path).hexdigest()[:8]

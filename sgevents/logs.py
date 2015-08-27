@@ -23,11 +23,23 @@ def get_log_meta():
         log_globals.meta = meta = {}
         return meta
 
+
+class _LogMetaContext(object):
+
+    def __init__(self, kwargs):
+        self.restore = get_log_meta()
+        log_globals.meta = new_meta = self.restore.copy()
+        new_meta.update(kwargs)
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, *args):
+        log_globals.meta = self.restore
+
+
 def update_log_meta(**kwargs):
-    try:
-        log_globals.meta.update(**kwargs)
-    except AttributeError:
-        log_globals.meta = kwargs
+    return _LogMetaContext(kwargs)
 
 
 _log_setup = None

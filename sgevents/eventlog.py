@@ -2,21 +2,9 @@ import time
 import pprint
 import logging
 
-
-# We prefer our own API object.
-try:
-    from sgapi import Shotgun
-except ImportError:
-    from shotgun_api3 import Shotgun
-
-try:
-    from shotgun_api3_registry import get_args as get_sg_args
-except ImportError:
-    get_sg_args = None
-
 from .event import Event
 from .logs import update_log_meta
-from .utils import get_func_name
+from .utils import get_func_name, get_shotgun
 
 
 log = logging.getLogger(__name__)
@@ -40,15 +28,7 @@ class EventLog(object):
 
     def __init__(self, shotgun=None, last_id=None, last_time=None, extra_fields=None):
 
-        if shotgun is None:
-            if get_sg_args is None:
-                raise ValueError('Shotgun instance is required if shotgun_sg3_registry:get_args does not exist')
-            shotgun_args = get_sg_args()
-            shotgun = Shotgun(*shotgun_args)
-        elif isinstance(shotgun, (list, tuple)):
-            shotgun = Shotgun(*shotgun)
-
-        self.shotgun = shotgun
+        self.shotgun = get_shotgun(shotgun)
         
         #: The highest event ID for which we have processed everything lower.
         self.max_complete_id = last_id or 0
@@ -75,9 +55,10 @@ class EventLog(object):
         while True:
             try:
                 for event in self.iter_events(*args, **kwargs):
-                    update_log_meta(event=event.id)
                     try:
-                        func(event)
+                        with update_log_meta(event=event.id):
+                            log.info(event.summary)
+                            func(event)
                     except KeyboardInterrupt:
                         return
                     except:

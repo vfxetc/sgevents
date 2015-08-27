@@ -13,7 +13,7 @@ from .shell import ShellScript
 from .. import logs
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger('sgevents.dispatcher') # __name__ is ugly here
 
 
 class Dispatcher(object):
@@ -73,6 +73,11 @@ class Dispatcher(object):
             raise TypeError('plugin descriptions are dicts; got %s' % type(desc))
 
         kwargs = desc.copy()
+        
+        enabled = kwargs.pop('enabled', True)
+        if not enabled:
+            return
+
         type_ = kwargs.pop('type')
 
         registrar = getattr(self, 'register_%s' % type_, None)
@@ -105,8 +110,6 @@ class Dispatcher(object):
     def dispatch(self, event):
         """Dispatch the given event."""
 
-        log.info('Dispatching %s' % event.summary)
-
         envvars = {}
         for ctx in self.contexts:
 
@@ -118,7 +121,7 @@ class Dispatcher(object):
                     log.exception('Error during context %r filter; skipping event' % ctx.name)
                     return
 
-            log.info('Matched context %r; setting %s' % (ctx.name, ' '.join(sorted('%s=%s' % x for x in ctx.envvars.iteritems()))))
+            #log.info('Matched context %r; setting %s' % (ctx.name, ' '.join(sorted('%s=%s' % x for x in ctx.envvars.iteritems()))))
             envvars.update(ctx.envvars)
 
         for handler in self.handlers:
