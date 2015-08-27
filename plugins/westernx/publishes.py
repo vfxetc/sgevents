@@ -10,12 +10,19 @@ log = logging.getLogger(__name__)
 def callback(event):
     
     sg = Session()
-    event = sg.merge(event)
     
     # Must be setting it to a non-zero version.
-    version = event.get('entity.PublishEvent.sg_version')
+    # NOTE: We MUST check the meta for this, otherwise we are liable to
+    # schedule this job multiple times as the `entity` field is always
+    # up to date.
+    version = event.meta.get('new_value')
     if not version:
         log.info('Publish is still being created; skipping')
+        return
+
+    entity = sg.merge(event)['entity']
+    if not entity:
+        log.info('Publish appeares to have been retired; skipping')
         return
 
     # For now, we only run for the Testing Sandbox.
@@ -24,17 +31,17 @@ def callback(event):
     #    return
 
     # Our first job, is to create camera and geocache publishes from generic maya scenes.
-    pub_type = event.get('entity.PublishEvent.sg_type')
+    pub_type = entity.get('sg_type')
     if pub_type != 'maya_scene':
         log.info('sg_type %r is not maya_scene; skipping' % pub_type)
         return
-    step_code = event.get('entity.PublishEvent.sg_link.Task.step.Step.short_name')
+    step_code = entity.get('sg_link.Task.step.Step.short_name')
     if step_code not in ('Anim', 'Roto'):
         log.info('sg_link.step.short_code %s is not Anim or Roto; skipping' % step_code)
         return
     
     log.info('Delegating to sgactions')
-    call_in_subprocess('%s:republish' % __file__, [event['entity.PublishEvent.id']])
+    call_in_subprocess('%s:republish' % __file__, [entity['id']])
 
 
 def republish(id_):
@@ -60,7 +67,6 @@ __sgevents__ = dict(
         'entity.PublishEvent.sg_link',
         'entity.PublishEvent.sg_link.Task.step.Step.short_name',
         'entity.PublishEvent.sg_type',
-        'entity.PublishEvent.sg_version',
     ],
 )
 
