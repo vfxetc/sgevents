@@ -1,4 +1,8 @@
 
+- tests
+    - ClientLogin_Failed parses okay
+    - event specializations work okay
+    
 - run as user
     - need to run as root
     - fall back to generic user if it is an ApiUser

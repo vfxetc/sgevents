@@ -1,4 +1,5 @@
 import json
+import re
 
 from .utils import pickleable
 
@@ -13,11 +14,11 @@ def _item_property(key, doc=None, transform=None):
     return property(_func, doc=doc)
 
 
-_specialization_classes = {}
+_specialization_classes = []
 
-def _specialization(subtype, entity_type=None, domain='Shotgun'):
+def _specialization(predicate):
     def _decorator(cls):
-        _specialization_classes[(domain, entity_type, subtype)] = cls
+        _specialization_classes.append(cls)
         return cls
     return _decorator
 
@@ -46,13 +47,13 @@ class Event(dict):
     
     @classmethod
     def factory(cls, event):
-        domain, entity_type, subtype = event['event_type'].split('_', 2)
-        subcls = (
-            _specialization_classes.get((domain, entity_type, subtype)) or 
-            _specialization_classes.get((domain, None       , subtype)) or
-            cls
-        )
-        return subcls(event)
+        # Look for one of the specializations.
+        for subcls in _specialization_classes:
+            obj = subcls.specialist_factory(event)
+            if obj:
+                return obj
+        return cls(event)
+
 
     def __init__(self, raw, shotgun=None):
         super(Event, self).__init__(raw)
@@ -69,7 +70,7 @@ class Event(dict):
     domain = _item_property('event_type', transform=lambda x: x.split('_', 2)[0], doc=
         """The event's namespace; every Shotgun event will have the domain ``"Shotgun"``.""")
     
-    subtype = _item_property('event_type', transform=lambda x: x.split('_', 2)[2], doc=
+    subtype = _item_property('event_type', transform=lambda x: x.split('_', 2)[-1], doc=
         """The action associated with this event; Shotgun events are of the subtype:
 
         - ``"New"``: creation of an entity
@@ -77,6 +78,8 @@ class Event(dict):
         - ``"Retirement"``: "deletion" of an entity
         - ``"Revival"``: "un-deletion" of an entity
         - ``"View"``: tracking that a human has viewed an entity
+
+        Behaviour is only defined for Shotgun events.
 
         """)
 
@@ -94,13 +97,18 @@ class Event(dict):
 
         """)
 
-    entity_type = _item_property('event_type', transform=lambda x: x.split('_')[1], doc="""
+    def _entity_type_transform(x):
+        x = x.split('_')
+        return x[1] if len(x) > 1 else None
+
+    entity_type = _item_property('event_type', transform=_entity_type_transform, doc="""
         The type of the entity.
 
         This is as reported by the event's :attr:`type`, which is always availible even
         if the entity is not. However, there is at least one case in which
         this differs from the type of the :attr:`entity`: the :ref:`reading_meta_type`.
 
+        Behaviour is only defined for Shotgun events.
 
     """.strip())
 
@@ -181,16 +189,27 @@ class Event(dict):
         return (self.__class__, (pickleable(self), ))
 
 
-@_specialization('Change', 'Reading')
+@_specialization
 class ReadingChangeEvent(Event):
+
+    @classmethod
+    def specialist_factory(cls, event):
+        if event['event_type'] == 'Shotgun_Reading_Change':
+            return cls(event)
 
     @property
     def entity_type(self):
         return self.entity['type']
 
 
-@_specialization('View')
+@_specialization
 class ViewEvent(Event):
+
+    @classmethod
+    def specialist_factory(cls, event):
+        type_ = event['event_type']
+        if type_.endswith('_View') and type_.startswith('Shotgun_'):
+            return cls(event)
 
     @property
     def subject_entity(self):
