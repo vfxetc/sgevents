@@ -217,7 +217,12 @@ class EventLog(object):
             self.max_complete_id = self.max_partial_id
 
         # We don't use this ourselves after the first scan, but it may be nice to have.
-        self.last_time = max(self.last_time, entity['created_at']) if self.last_time else entity['created_at']
+        # We also tend to get type errors on the first pass because the database
+        # gives us datetime while sgapi gives us str; lets ignore those!
+        try:
+            self.last_time = max(self.last_time, entity['created_at'])
+        except TypeError:
+            self.last_time = entity['created_at']
 
         return entity if entity_is_new else None
 
