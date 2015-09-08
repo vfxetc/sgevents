@@ -52,9 +52,11 @@ class EventLog(object):
             self.return_fields.extend(extra_fields)
 
     def process_events_forever(self, func, *args, **kwargs):
+        error_count = 0
         while True:
             try:
                 for event in self.iter_events_forever(*args, **kwargs):
+                    error_count = 0
                     try:
                         with update_log_meta(event=event.id):
                             log.info(event.summary)
@@ -67,7 +69,16 @@ class EventLog(object):
             except KeyboardInterrupt:
                 return
             except:
-                log.exception('error during event iteration; sleeping for 10s')
+                # Since we may get into an infinite loop, don't send emails for
+                # them forever, just every 10 minutes or so.
+                error_count += 1
+                if error_count <= 10 or error_count % 60 == 1:
+                    if error_count >= 10:
+                        log.exception('Error %d during event iteration; silencing for ~10 minutes; sleeping for 10s' % error_count)
+                    else:
+                        log.exception('Error %d during event iteration; sleeping for 10s' % error_count)
+                else:
+                    log.warning('Error %d during event iteration; sleeping for 10s' % error_count, exc_info=True)
                 time.sleep(10)
             else:
                 log.warning('iter_events_forever returned; sleeping for 10s')
