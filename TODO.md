@@ -1,17 +1,13 @@
 
-- tests
-    - ClientLogin_Failed parses okay
-    - event specializations work okay
+- EventLog.iter_events should skip any events that it has internal errors on
+    - This could require a big refactor to turn everything into an iterator.
+
+- ViewEvent.subject_entity
+    - Should the page be moved to viewing_entity, or something?
     
 - run as user
     - need to run as root
     - fall back to generic user if it is an ApiUser
-
-- qbfutures handler type
-
-- very agressive error handling
-
-- send emails on errors
 
 - log all execution so that it may be displayed in a web browser
 

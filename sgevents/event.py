@@ -16,11 +16,9 @@ def _item_property(key, doc=None, transform=None):
 
 _specialization_classes = []
 
-def _specialization(predicate):
-    def _decorator(cls):
-        _specialization_classes.append(cls)
-        return cls
-    return _decorator
+def _specialization(cls):
+    _specialization_classes.append(cls)
+    return cls
 
 
 

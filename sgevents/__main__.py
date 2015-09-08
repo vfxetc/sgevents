@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from .core import EventLog
+from .eventlog import EventLog
 
 
 parser = argparse.ArgumentParser()
