@@ -10,6 +10,9 @@ from .utils import get_func_name, get_shotgun
 log = logging.getLogger(__name__)
 
 
+DEFAULT_COUNT = 100
+
+
 class EventLog(object):
 
     """An object to poll Shotgun's API for new ``EventLogEntry`` entities.
@@ -84,7 +87,7 @@ class EventLog(object):
                 log.warning('iter_events_forever returned; sleeping for 10s')
                 time.sleep(10)
 
-    def iter_events_forever(self, batch_size=100, idle_delay=3.0):
+    def iter_events_forever(self, batch_size=DEFAULT_COUNT, idle_delay=3.0):
         """Yields :class:`Event` objects as they become availible.
 
         :param int batch_size: The number of events to read from the API at once.
@@ -102,16 +105,30 @@ class EventLog(object):
 
         """
         
+        last_time = time.time()
+        warn_at = 600
+
         while True:
 
+            e = None
             batch = self.iter_events(batch_size)
             for e in batch:
                 yield e
 
-            if not batch:
+            if e is not None:
+                last_time = time.time()
+
+            else:
+
+                # Just being hyper-vigilant.
+                if (time.time() - last_time) > warn_at:
+                    minutes = (time.time() - last_time) / 60
+                    warn_at += 600
+                    log.info('no new events in last %d minutes')
+
                 time.sleep(idle_delay)
 
-    def iter_events(self, count=100, wrap=True):
+    def iter_events(self, count=DEFAULT_COUNT, wrap=True):
         """Polls for new events, filtering with :func:`filter_new`.
 
         The EventLog assumes that once an event has been yielded OR an exception
@@ -125,12 +142,27 @@ class EventLog(object):
         :return generator: of events (or entities).
 
         """
+
+        last_partial_id = self.max_partial_id
+        last_max_id = self.max_complete_id
+
         raw_entities = self.find_next_entities(count)
         for entity in raw_entities:
             if self.filter_new(entity):
                 yield Event.factory(entity) if wrap else entity
 
-    def find_next_entities(self, count=100):
+        # Be very verbose about what we expect.
+        if self.max_partial_id != last_partial_id and self.max_partial_id != self.max_complete_id:
+            log.debug('seen some events up to %r; missing %s: %s' % (
+                self.max_partial_id,
+                len(self.missing_ids),
+                ', '.join(str(x) for x in sorted(self.missing_ids))
+            ))
+        if self.max_complete_id != last_max_id:
+            log.debug('seen all events up to %r' % self.max_complete_id)
+
+
+    def find_next_entities(self, count=DEFAULT_COUNT, min_count_when_missing=10):
         """Find the next raw ``EventLogEntry`` entities.
 
         This method does NOT update the ``last_id`` or ``last_time`` fields;
@@ -138,13 +170,29 @@ class EventLog(object):
 
         """
 
+        # Make sure we are looking far enough into the future to grab enough
+        # events that we care about.
+        partial_gap = self.max_partial_id - self.max_complete_id
+        partial_count = max(partial_gap + min_count_when_missing, count)
+        if partial_count > count:
+            log.warning('count of %d is not enough to return %d with partial gap of %d; requesting %d' % (
+                count, min_count_when_missing, partial_gap, partial_count
+            ))
+
+        # Prune missing IDs that we've had for too long. Must be done
+        # before every API call; we used to only do this when new events
+        # were processed, but you can end up in a situation in which ever
+        # non-missing event within `count` has been handled, and so you
+        # will never make progress.
+        self._prune_missing_ids()
+
         if self.max_complete_id:
-            entities = self.find_entities(count, filters=[('id', 'greater_than', self.max_complete_id)])
+            entities = self.find_entities(partial_count, filters=[('id', 'greater_than', self.max_complete_id)])
         else:
             if self.last_time:
                 # everything since the last time
                 log.info('starting at most recent event since %s' % self.last_time)
-                entities = self.find_entities(count, filters=[('created_at', 'greater_than', self.last_time)])
+                entities = self.find_entities(partial_count, filters=[('created_at', 'greater_than', self.last_time)])
             else:
                 # the last event
                 log.info('starting at most recent event')
@@ -199,22 +247,7 @@ class EventLog(object):
                 ', '.join(str(i) for i in sorted(newly_missed)),
             ))
 
-        # Prune any missing ids which have gotten too old.
-        expired_ids = [i for i, t in self.missing_ids.iteritems() if (now - t) > self.id_timeout]
-        if expired_ids:
-            log.warning('pruning %d event id%s which have timed out: %s' % (
-                len(expired_ids),
-                's' if len(expired_ids) > 1 else '',
-                ', '.join(str(i) for i in sorted(expired_ids)),
-            ))
-            for i in expired_ids:
-                self.missing_ids.pop(i)
-
-        # Figure out what the last id we have complete knowledge of is.
-        if self.missing_ids:
-            self.max_complete_id = min(self.missing_ids) - 1
-        else:
-            self.max_complete_id = self.max_partial_id
+        self._update_max_complete_id()
 
         # We don't use this ourselves after the first scan, but it may be nice to have.
         # We also tend to get type errors on the first pass because the database
@@ -225,6 +258,35 @@ class EventLog(object):
             self.last_time = entity['created_at']
 
         return entity if entity_is_new else None
+
+    def _prune_missing_ids(self):
+
+        did_expire = False
+
+        # Prune any missing ids which have gotten too old.
+        expired_ids = [i for i, t in self.missing_ids.iteritems() if (now - t) > self.id_timeout]
+        if expired_ids:
+            log.warning('pruning %d event id%s which have timed out: %s' % (
+                len(expired_ids),
+                's' if len(expired_ids) > 1 else '',
+                ', '.join(str(i) for i in sorted(expired_ids)),
+            ))
+            for i in expired_ids:
+                self.missing_ids.pop(i)
+                did_expire = True
+
+        if did_expire:
+            self._update_max_complete_id()
+
+        return did_expire
+
+    def _update_max_complete_id(self):
+
+        # Figure out what the last id we have complete knowledge of is.
+        if self.missing_ids:
+            self.max_complete_id = min(self.missing_ids) - 1
+        else:
+            self.max_complete_id = self.max_partial_id
 
     def find_entities(self, limit, filters=None, **kwargs):
         return self.shotgun.find('EventLogEntry',
