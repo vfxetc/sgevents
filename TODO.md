@@ -1,4 +1,16 @@
 
+- move sgevents or sgcache loop error handling into sgapi.retry
+
+- have another thread watching the the event loop, making sure that
+  it is actually returning periodically
+
+  last event seemed to be:
+
+    2015-09-15.27691.log:2015-09-15 10:14:18,158 INFO     pid:27691 event:2205093 sgcache.events - skipping event; unknown event subtype View
+
+
+- instrument the event loop to print out what the max last id is
+
 - EventLog.iter_events should skip any events that it has internal errors on
     - This could require a big refactor to turn everything into an iterator.
 

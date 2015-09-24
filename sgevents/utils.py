@@ -1,9 +1,10 @@
-import imp
+from datetime import datetime
 import hashlib
+import imp
+import os
 import re
 import sys
-import os
-from datetime import datetime
+import traceback
 
 import sgapi
 
@@ -98,4 +99,12 @@ def pickleable(value):
         return datetime(*value.utctimetuple()[:6])
 
     return value
+
+
+def try_call_except_traceback(func, *args, **kwargs):
+    try:
+        func(*args, **kwargs)
+    except:
+        traceback.print_exc()
+        raise
 

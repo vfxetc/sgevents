@@ -1,12 +1,14 @@
 import argparse
 import json
 import logging
-import socket
 import os
+import socket
+import time
 
 from .dispatcher import Dispatcher
 from .eventlog import EventLog
 from .logs import setup_logs, log_globals
+from .utils import try_call_except_traceback
 
 
 def main(argv=None):
@@ -47,7 +49,6 @@ def main(argv=None):
 
     event_log = EventLog(extra_fields=dispatcher.get_extra_fields(), last_id=state.get('last_id'))
     
-    @event_log.process_events_forever
     def on_event(event):
         try:
             dispatcher.dispatch(event)
@@ -56,6 +57,11 @@ def main(argv=None):
                 state['last_id'] = event.id
                 with open(state_path, 'w') as fh:
                     fh.write(json.dumps(state))
+
+    # Be hyper-vigilant.
+    while True:
+        try_call_except_traceback(event_log.process_events_forever, on_event)
+        time.sleep(10)
 
 
 if __name__ == '__main__':

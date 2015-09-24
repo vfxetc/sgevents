@@ -57,7 +57,9 @@ def setup_logs(
     global _log_setup
     _log_setup = (file_dir, file_level, smtp_args, smtp_level, debug)
 
-
+    # Silence connection pool opening and closing.
+    logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.WARNING)
+    
     root = logging.getLogger()
     root.setLevel(logging.DEBUG if debug else logging.INFO)
 
@@ -73,7 +75,9 @@ def setup_logs(
         root.addHandler(handler)
 
     # Console logging.
-    add_handler(logging.StreamHandler(sys.stderr))
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(logging.DEBUG if debug else logging.INFO)
+    add_handler(handler)
 
     # File logging.
     if file_dir:
