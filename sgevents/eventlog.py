@@ -32,7 +32,10 @@ class EventLog(object):
     def __init__(self, shotgun=None, last_id=None, last_time=None, extra_fields=None):
 
         self.shotgun = get_shotgun(shotgun)
-        
+            
+        # We need to force a timeout.
+        self.shotgun.config.timeout_secs = 30.1 # Marginally more than a multiple of 3.
+
         #: The highest event ID for which we have processed everything lower.
         self.max_complete_id = last_id or 0
 

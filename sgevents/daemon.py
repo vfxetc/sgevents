@@ -23,6 +23,11 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
 
+    # Set a global socket timeout, so that nothing socket related will ever
+    # lock us up. This is likely to cause a few extra problems, but we can
+    # deal with them.
+    socket.setdefaulttimeout(60.1)
+    
     smtp_args = (
         'localhost',
         'sgevents@mail.westernx',
