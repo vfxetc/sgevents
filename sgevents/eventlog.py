@@ -127,7 +127,7 @@ class EventLog(object):
                 if (time.time() - last_time) > warn_at:
                     minutes = (time.time() - last_time) / 60
                     warn_at += 600
-                    log.info('no new events in last %d minutes')
+                    log.info('no new events in last %d minutes' % minutes)
 
                 time.sleep(idle_delay)
 
