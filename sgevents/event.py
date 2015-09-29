@@ -143,6 +143,10 @@ class Event(dict):
 
         parts = [self.event_type]
 
+        attribute = self.get('attribute_name')
+        if attribute:
+            parts.append('(%s)' % attribute)
+
         subject = self.subject_entity or self.entity
         if subject:
             parts.append('on %s:%d' % (subject['type'], subject['id']))
