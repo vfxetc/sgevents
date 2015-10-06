@@ -36,7 +36,7 @@ def callback(event):
         log.info('sg_type %r is not maya_scene; skipping' % pub_type)
         return
     step_code = entity.get('sg_link.Task.step.Step.short_name')
-    if step_code not in ('Anim', 'Roto'):
+    if step_code not in ('Anim', 'Roto', 'Rotomation'):
         log.info('sg_link.step.short_code %s is not Anim or Roto; skipping' % step_code)
         return
     
