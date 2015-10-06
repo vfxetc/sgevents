@@ -267,6 +267,7 @@ class EventLog(object):
         did_expire = False
 
         # Prune any missing ids which have gotten too old.
+        now = time.time()
         expired_ids = [i for i, t in self.missing_ids.iteritems() if (now - t) > self.id_timeout]
         if expired_ids:
             log.warning('pruning %d event id%s which have timed out: %s' % (
