@@ -201,7 +201,10 @@ class ReadingChangeEvent(Event):
 
     @property
     def entity_type(self):
-        return self.entity['type']
+        if self.entity is not None:
+            return self.entity['type']
+        else:
+            return '<retired>'
 
 
 @_specialization
