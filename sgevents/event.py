@@ -56,6 +56,7 @@ class Event(dict):
     def __init__(self, raw, shotgun=None):
         super(Event, self).__init__(raw)
         self._shotgun = shotgun
+        self._entity_is_retired = None
 
     id = _item_property('id', """The ID of the ``EventLogEntry`` entity.""")
 
@@ -169,6 +170,13 @@ class Event(dict):
     def dumps(self, pretty=False):
         return json.dumps(self, sort_keys=pretty, indent=4 if pretty else None, default=str)
 
+    @property
+    def entity_is_retired(self):
+        v = self._entity_is_retired
+        if v is None:
+            self._entity_is_retired = v = self.entity is None
+        return v
+
     def find_retired_entity(self):
         """Find the "retired" entity that goes with this event log.
 
@@ -180,6 +188,10 @@ class Event(dict):
             which is officially unsupported.
 
         """
+        
+        # Cache the property before changing how it is evaluated.
+        _ = self.entity_is_retired
+
         if not self.entity:
             e = self._shotgun.find_one(self.entity_type, [('$FROM$EventLogEntry.entity.id', 'is', self.id)])
             if not e:

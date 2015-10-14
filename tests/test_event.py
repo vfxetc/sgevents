@@ -53,3 +53,22 @@ class TestEvent(TestCase):
         self.assertEqual(event.entity_type, 'Version')
         self.assertEqual(event.entity, {'type': 'Page', 'id': 1234}) # This is wierd.
         self.assertEqual(event.subject_entity, {'type': 'Version', 'id': 1234})
+
+    def test_entity_is_retired(self):
+
+        event = Event.factory({
+            'event_type': 'Shotgun_Version_Change',
+            'entity': {'type': 'Version', 'id': 1234},
+        })
+        self.assertFalse(event.entity_is_retired)
+
+        event = Event.factory({
+            'event_type': 'Shotgun_Version_Change',
+            'entity': None,
+        })
+        self.assertTrue(event.entity_is_retired)
+
+        event['entity'] = {'type': 'Version', 'id': 1234}
+        self.assertTrue(event.entity_is_retired)
+        
+
