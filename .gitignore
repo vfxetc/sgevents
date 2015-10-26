@@ -5,6 +5,11 @@
 /build
 _build
 
+# We store runtime info in var.
 /tmp
 /var
+
+# We tend to use this as a sgevents user's home,
+# so there is a lot of cruft.
+/.*
 

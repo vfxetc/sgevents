@@ -1,5 +1,6 @@
 import logging
 
+from shotgun_api3_registry import connect
 from sgevents.subprocess import call_in_subprocess
 from sgsession import Session
 
@@ -8,8 +9,6 @@ log = logging.getLogger(__name__)
 
 
 def callback(event):
-    
-    sg = Session()
     
     # Must be setting it to a non-zero version.
     # NOTE: We MUST check the meta for this, otherwise we are liable to
@@ -20,10 +19,14 @@ def callback(event):
         log.info('Publish is still being created; skipping')
         return
 
+    sg = Session(connect())
+    
     entity = sg.merge(event)['entity']
     if not entity:
         log.info('Publish appeares to have been retired; skipping')
         return
+        
+    entity.fetch(('sg_link', 'sg_link.Task.step.Step.short_name', 'sg_type'))
 
     # For now, we only run for the Testing Sandbox.
     #if event['project']['id'] != 66:
@@ -63,11 +66,6 @@ __sgevents__ = dict(
         'event_type': 'Shotgun_PublishEvent_Change',
         'attribute_name': 'sg_version',
     },
-    extra_fields=[
-        'entity.PublishEvent.sg_link',
-        'entity.PublishEvent.sg_link.Task.step.Step.short_name',
-        'entity.PublishEvent.sg_type',
-    ],
 )
 
 

@@ -12,8 +12,9 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 mkdir -p var/logs
 
-exec python -m sgevents.daemon \
-	--email-errors 'mboers@mail.westernx' \
+exec python -m sgevents.commands.daemon \
+        --verbose \
+        --email-errors 'mboers@mail.westernx' \
 	--email-errors 'mreid@mail.westernx' \
 	--log-dir var/logs \
 	--state-path var/state.json \

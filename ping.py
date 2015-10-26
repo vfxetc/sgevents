@@ -8,7 +8,7 @@ import os
 import urllib
 
 os.environ.pop('SGCACHE', None)
-
+sys.path.append('/usr/local/vee/environments/westernx/master/lib/python2.7/site-packages')
 
 from shotgun_api3_registry import connect
 
