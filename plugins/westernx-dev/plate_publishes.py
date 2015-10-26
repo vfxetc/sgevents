@@ -1,8 +1,8 @@
 import logging
 
-from shotgun_api3_registry import connect
-from sgevents.subprocess import call_in_subprocess
 from sgsession import Session
+from shotgun_api3_registry import connect
+import qbfutures
 
 
 log = logging.getLogger(__name__)
@@ -26,36 +26,31 @@ def callback(event):
         log.info('Publish appeares to have been retired; skipping')
         return
         
-    entity.fetch(('sg_link', 'sg_link.Task.step.Step.short_name', 'sg_type'))
+    entity.fetch(('code', 'sg_link.Task.step.Step.short_name', 'sg_type'))
 
     # For now, we only run for the Testing Sandbox.
     #if event['project']['id'] != 66:
     #    log.info('Project %r in not Testing Sandbox; skipping' % (event['project'].get('name') or event['project']['id']))
     #    return
 
-    # Our first job, is to create camera and geocache publishes from generic maya scenes.
     pub_type = entity.get('sg_type')
-    if pub_type != 'maya_scene':
-        log.info('sg_type %r is not maya_scene; skipping' % pub_type)
+    if pub_type != 'plate':
+        log.info('sg_type %r is not plate; skipping' % pub_type)
         return
+
     step_code = entity.get('sg_link.Task.step.Step.short_name')
-    if step_code not in ('Anim', 'Roto', 'Rotomation'):
-        log.info('sg_link.step.short_code %s is not Anim or Roto; skipping' % step_code)
+    if step_code not in ('Online', ):
+        log.info('sg_link.step.short_code %s is not Online; skipping' % step_code)
         return
     
-    log.info('Delegating to sgactions')
-    call_in_subprocess('%s:republish' % __file__, [entity['id']])
+    # TODO: Make sure it doesn't already exist.
 
+    future = qbfutures.submit_ext('kspipeline.edit.plate_publish.core:republish_as_proxy',
+        args=[entity.minimal],
+        name='Republish plate %d "%s" as proxy' % (entity['id'], entity['code']),
+    )
 
-def republish(id_):
-
-    from mayatools.actions.publishes import republish_camera, republish_geocache
-
-    log.info('Scheduling camera republish...')
-    republish_camera('PublishEvent', [id_])
-
-    log.info('Scheduling geocache republish...')
-    republish_geocache('PublishEvent', [id_])
+    log.info('republish_as_proxy scheduled on Qube as %d' % future.job_id)
 
 
 __sgevents__ = dict(

@@ -9,6 +9,19 @@ from .utils import get_command_prefix, get_func_name, get_func
 from . import logs
 
 
+def call_in_fork(func, args=None, kwargs=None):
+    
+    args = args or ()
+    kwargs = kwargs or ()
+
+    pid = os.fork()
+    if pid:
+        return pid
+
+    func = get_func(func)
+    func(*args, **kwargs)
+
+
 def call_in_subprocess(func, args=None, kwargs=None, envvars=None, ):
 
     cmd = get_command_prefix(envvars) if envvars else []
