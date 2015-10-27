@@ -26,7 +26,7 @@ def callback(event):
         log.info('Publish appeares to have been retired; skipping')
         return
         
-    entity.fetch(('code', 'sg_link.Task.step.Step.short_name', 'sg_type'))
+    entity.fetch(('code', 'sg_link.Task.step.Step.short_name', 'sg_type', 'created_by.HumanUser.login'))
 
     # For now, we only run for the Testing Sandbox.
     #if event['project']['id'] != 66:
@@ -45,9 +45,15 @@ def callback(event):
     
     # TODO: Make sure it doesn't already exist.
 
+    # Run it as the correct user; assume their Shotgun login matches.
+    login = entity.get('created_by.HumanUser.login')
+    user = login.split('@')[0] if login else None
+
     future = qbfutures.submit_ext('kspipeline.edit.plate_publish.core:republish_as_proxy',
         args=[entity.minimal],
         name='Republish plate %d "%s" as proxy' % (entity['id'], entity['code']),
+        user=user,
+        priority=8000,
     )
 
     log.info('republish_as_proxy scheduled on Qube as %d' % future.job_id)
