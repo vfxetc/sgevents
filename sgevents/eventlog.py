@@ -6,7 +6,7 @@ import threading
 from .event import Event
 from .logs import update_log_meta
 from .utils import get_func_name, get_shotgun
-
+from .loop import LoopController
 
 log = logging.getLogger(__name__)
 
@@ -54,9 +54,7 @@ class EventLog(object):
         #: The time of the last event we have seen.
         self.last_time = last_time or None
 
-        self._is_running = threading.Event()
-        self._poll_signal = threading.Condition()
-        self._sleep_signal = threading.Condition()
+        self.loop_controller = LoopController()
 
         self.return_fields = list(Event.return_fields)
         if extra_fields:
@@ -90,45 +88,10 @@ class EventLog(object):
                         log.exception('Error %d during event iteration; sleeping for 10s' % error_count)
                 else:
                     log.warning('Error %d during event iteration; sleeping for 10s' % error_count, exc_info=True)
-                self._sleep(10)
+                self.loop_controller.sleep(10)
             else:
                 log.warning('iter_events_forever returned; sleeping for 10s')
-                self._sleep(10)
-
-    def _sleep(self, delay):
-
-        # If anything is waiting for us to sleep, let them know.
-        with self._sleep_signal:
-            self._sleep_signal.notify_all()
-
-        # Sleep until something wakes us up.
-        delay = min(delay, 60)
-        with self._poll_signal:
-            self._poll_signal.wait(delay)
-
-        # Finally, make sure we are allowed to continue from here.
-        self._is_running.wait()
-
-    def poll(self, wait=False, timeout=30.0):
-        """Force a poll from another thread."""
-        self._is_running.set()
-        with self._poll_signal:
-            self._poll_signal.notify_all()
-        if wait:
-            with self._sleep_signal:
-                self._sleep_signal.wait(timeout)
-
-    def start(self):
-        """Start the loop from another thread."""
-        state = self._is_running.is_set()
-        self._is_running.set()
-        return not state
-
-    def stop(self):
-        """Stop the loop from another thread."""
-        state = self._is_running.is_set()
-        self._is_running.clear()
-        return state
+                self.loop_controller.sleep(10)
 
     def iter_events_forever(self, batch_size=DEFAULT_COUNT, idle_delay=3.0):
         """Yields :class:`Event` objects as they become availible.
@@ -169,7 +132,7 @@ class EventLog(object):
                     warn_at += 600
                     log.info('no new events in last %d minutes' % minutes)
 
-                self._sleep(idle_delay)
+                self.loop_controller.sleep(idle_delay)
 
     def iter_events(self, count=DEFAULT_COUNT, wrap=True):
         """Polls for new events, filtering with :func:`filter_new`.
