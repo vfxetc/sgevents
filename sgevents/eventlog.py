@@ -1,7 +1,7 @@
 import time
 import pprint
 import logging
-from threading import Condition
+import threading
 
 from .event import Event
 from .logs import update_log_meta
@@ -54,8 +54,9 @@ class EventLog(object):
         #: The time of the last event we have seen.
         self.last_time = last_time or None
 
-        self._signal_wake_up = Condition()
-        self._signal_sleep = Condition()
+        self._is_running = threading.Event()
+        self._poll_signal = threading.Condition()
+        self._sleep_signal = threading.Condition()
 
         self.return_fields = list(Event.return_fields)
         if extra_fields:
@@ -95,20 +96,39 @@ class EventLog(object):
                 self._sleep(10)
 
     def _sleep(self, delay):
+
         # If anything is waiting for us to sleep, let them know.
-        with self._signal_sleep:
-            self._signal_sleep.notify_all()
+        with self._sleep_signal:
+            self._sleep_signal.notify_all()
+
         # Sleep until something wakes us up.
         delay = min(delay, 60)
-        with self._signal_wake_up:
-            self._signal_wake_up.wait(delay)
+        with self._poll_signal:
+            self._poll_signal.wait(delay)
 
-    def wake_up(self, wait=False, timeout=30.0):
-        with self._signal_wake_up:
-            self._signal_wake_up.notify_all()
+        # Finally, make sure we are allowed to continue from here.
+        self._is_running.wait()
+
+    def poll(self, wait=False, timeout=30.0):
+        """Force a poll from another thread."""
+        self._is_running.set()
+        with self._poll_signal:
+            self._poll_signal.notify_all()
         if wait:
-            with self._signal_sleep:
-                self._signal_sleep.wait(timeout)
+            with self._sleep_signal:
+                self._sleep_signal.wait(timeout)
+
+    def start(self):
+        """Start the loop from another thread."""
+        state = self._is_running.is_set()
+        self._is_running.set()
+        return not state
+
+    def stop(self):
+        """Stop the loop from another thread."""
+        state = self._is_running.is_set()
+        self._is_running.clear()
+        return state
 
     def iter_events_forever(self, batch_size=DEFAULT_COUNT, idle_delay=3.0):
         """Yields :class:`Event` objects as they become availible.
