@@ -61,11 +61,12 @@ class EventLog(object):
             self.return_fields.extend(extra_fields)
 
     def process_events_forever(self, func, *args, **kwargs):
+        io_error_count = 0
         error_count = 0
         while True:
             try:
                 for event in self.iter_events_forever(*args, **kwargs):
-                    error_count = 0
+                    error_count = io_error_count = 0
                     try:
                         with update_log_meta(event=event.id):
                             log.info(event.summary)
@@ -77,6 +78,16 @@ class EventLog(object):
 
             except KeyboardInterrupt:
                 return
+
+            except IOError as e:
+                io_error_count += 1
+                log.log(
+                    logging.ERROR if io_error_count % 60 == 2 else logging.WARNING,
+                    'No connection to Shotgun for ~%d minutes; sleeping for 10s' % (io_error_count / 6),
+                    exc_info=True,
+                )
+                self.loop_controller.sleep(10)
+
             except:
                 # Since we may get into an infinite loop, don't send emails for
                 # them forever, just every 10 minutes or so.
