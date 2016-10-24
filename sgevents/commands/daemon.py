@@ -15,7 +15,8 @@ def main(argv=None):
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('-p', '--plugin-dir', action='append')
+    parser.add_argument('-P', '--plugin-dir', action='append')
+    parser.add_argument('-p', '--plugin', action='append')
 
     state_group = parser.add_mutually_exclusive_group()
     state_group.add_argument('-s', '--state-path')
@@ -48,7 +49,9 @@ def main(argv=None):
 
     dispatcher = Dispatcher()
     for plugin_dir in args.plugin_dir or ():
-        dispatcher.load_plugins(plugin_dir)
+        dispatcher.load_plugin_dir(plugin_dir)
+    for plugin_path in args.plugin or ():
+        dispatcher.load_plugin(plugin_path)
 
     event_log = EventLog(extra_fields=dispatcher.get_extra_fields(), last_id=args.last_id or state.get('last_id'))
     

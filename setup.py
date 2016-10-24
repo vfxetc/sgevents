@@ -21,6 +21,7 @@ setup(
         'console_scripts': '''
             sgevents-daemon = sgevents.commands.daemon:main
             sgevents-dispatch = sgevents.commands.dispatch:main
+            sgevents-dump = sgevents.commands.dump:main
         ''',
     },
 

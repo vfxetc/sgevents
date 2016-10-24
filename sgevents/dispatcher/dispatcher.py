@@ -23,7 +23,7 @@ class Dispatcher(object):
         self.handlers = []
         self._dispatch_counter = itertools.count(1)
 
-    def load_plugins(self, dir_path):
+    def load_plugin_dir(self, dir_path):
         """Load plugins from ``*.yml`` and ``*.py`` files in given directory."""
         for name in os.listdir(dir_path):
 
@@ -31,11 +31,16 @@ class Dispatcher(object):
             if name.startswith('.'):
                 continue
 
-            base, ext = os.path.splitext(name)
+            self.load_plugin(os.path.join(dir_path, name), strict=False)
+
+    def load_plugin(self, path, strict=True):
+            ext = os.path.splitext(path)[1]
             if ext == '.py':
-                self._load_python_plugin(os.path.join(dir_path, name))
+                self._load_python_plugin(path)
             elif ext in ('.yml', '.yaml'):
-                self._load_yaml_plugin(os.path.join(dir_path, name))
+                self._load_yaml_plugin(path)
+            else:
+                raise ValueError('unknown plugin type: %s' % path)
 
     def _load_python_plugin(self, path):
         log.info('Loading Python plugin(s) from %s' % path)
