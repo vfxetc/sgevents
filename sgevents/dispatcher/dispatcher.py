@@ -34,7 +34,14 @@ class Dispatcher(object):
             self.load_plugin(os.path.join(dir_path, name), strict=False)
 
     def load_plugin(self, path, strict=True):
-            ext = os.path.splitext(path)[1]
+
+            name = os.path.basename(path)
+            basename, ext = os.path.splitext(name)
+
+            # Ignore compiled Python and package's __init__ files.
+            if basename in ('__init__', ) or ext in ('.pyc', ):
+                return
+
             if ext == '.py':
                 self._load_python_plugin(path)
             elif ext in ('.yml', '.yaml'):
