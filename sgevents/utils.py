@@ -45,7 +45,7 @@ def get_adhoc_module(path):
 def get_func_name(spec):
     if isinstance(spec, basestring):
         return spec
-    return '%s.%s' % (getattr(spec, '__module__', '__module__'), getattr(spec, '__name__', str(spec)))
+    return '%s:%s' % (getattr(spec, '__module__', '__module__'), getattr(spec, '__name__', str(spec)))
 
 
 def get_func(spec):
