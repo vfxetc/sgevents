@@ -6,6 +6,8 @@ import re
 import sys
 import traceback
 
+import pkg_resources
+
 import sgapi
 
 
@@ -13,10 +15,18 @@ def get_shotgun(shotgun=None):
 
     if shotgun is None:
 
+        eps = list(pkg_resources.iter_entry_points('shotgun_api3_kwargs'))
+        for ep in eps:
+            func = ep.load()
+            shotgun = func()
+            if shotgun:
+                break
+
+    if shotgun is None:
         try:
             import shotgun_api3_registry
         except ImportError:
-            raise ValueError('Shotgun instance is required if shotgun_sg3_registry:get_args does not exist')
+            raise ValueError('Shotgun instance is required if no shotgun_api3_kwargs entrypoint or shotgun_sg3_registry:get_args does not exist')
 
         if hasattr(shotgun_api3_registry, 'get_kwargs'):
             shotgun = shotgun_api3_registry.get_kwargs()
