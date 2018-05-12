@@ -29,6 +29,10 @@ class Filter(object):
                     self.attributes[k] = functools.partial(self._eval_entity_equality, v['type'], v['id'])
                     return
 
+                if isinstance(v, (tuple, set)):
+                    self.attributes[k] = lambda key, value: value in v
+                    return
+                
                 self.attributes[k] = functools.partial(self._eval_equality, v)
 
         else:
