@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import datetime
+import sys
 
 import yaml
 
@@ -23,10 +24,14 @@ def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-p', '--pretty', action='store_true')
+    parser.add_argument('-C', '--colour', action='store_true')
     parser.add_argument('-o', '--output')
     parser.add_argument('--last-id', type=int)
 
     args = parser.parse_args(argv)
+
+    if args.colour:
+        from pygments import highlight, lexers, formatters
 
     setup_logs(debug=args.verbose)
 
@@ -37,8 +42,11 @@ def main(argv=None):
         encoded = json.dumps(dict(event), default=json_default, indent=4 if args.pretty else None, sort_keys=True)
         if out_fh:
             out_fh.write(encoded + '\n\n')
+        if args.colour:
+            encoded = highlight(unicode(encoded, 'UTF-8'), lexers.JsonLexer(), formatters.TerminalFormatter())
         print encoded
         print
+        sys.stdout.flush()
 
 
 if __name__ == '__main__':
